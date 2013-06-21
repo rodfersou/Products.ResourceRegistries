@@ -381,8 +381,6 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
         response = self.REQUEST.RESPONSE
         response.setHeader('Expires',rfc1123_date((DateTime() + duration).timeTime()))
         response.setHeader('Cache-Control', 'max-age=%d' % int(seconds))
-        if not self.getDebugMode():
-            response.setHeader('Content-Encoding', 'gzip')
 
         if isinstance(output, unicode):
             output = output.encode('utf-8')
@@ -692,8 +690,11 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
         for id in ids:
             resource = resources.get(id, None)
             gzipped = False
+            inline = False
             if (resource and hasattr(resource, 'getGzipped')):
                 gzipped = resource.getGzipped()
+            if (resource and hasattr(resource, 'getInline')):
+                inline = resource.getInline()
 
             try:
                 if portal is not None:
@@ -821,7 +822,9 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
                     output += self.finalizeContent(resources[id], content)
                 output += u'\n'
 
-        if not self.getDebugMode():
+        if ((not self.getDebugMode()) and
+            (not inline)):
+            self.REQUEST.RESPONSE.setHeader('Content-Encoding', 'gzip')
             output = compress(item, output)
 
         return output
