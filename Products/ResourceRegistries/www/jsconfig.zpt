@@ -243,6 +243,14 @@ legend {
                                         selected python:r == script.getCompression()"
                         tal:content="r">safe</option>
             </select>
+
+
+            <div>
+                <label>File Gzipped?</label>
+                <input type="checkbox" name="scripts.gzipped:boolean" value="True" />
+                <input type="hidden" name="scripts.gzipped:boolean:default" value="False"
+                       tal:attributes="checked scripts/getGzipped | default" />
+            </div>
         </div>
 
         <div class="scriptform">
@@ -325,6 +333,12 @@ legend {
                                         selected python:r=='safe'"
                         tal:content="r">safe</option>
             </select>
+        </div>
+
+        <div>
+            <label>File Gzipped?</label>
+            <input type="checkbox" name="gzipped:boolean" value="True" />
+            <input type="hidden" name="gzipped:boolean:default" value="False" />
         </div>
 
         <div>

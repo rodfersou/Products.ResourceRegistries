@@ -31,6 +31,7 @@ class Stylesheet(Resource):
         self._data['rendering'] = kwargs.get('rendering', 'link')
         self._data['compression'] = kwargs.get('compression', 'safe')
         self._data['applyPrefix'] = kwargs.get('applyPrefix', False)
+        self._data['gzipped'] = kwargs.get('gzipped', False)
         if self.isExternal:
             if id.startswith('//') and self._data['rendering'] != 'link':
                 # force a link. it doesn't make sense any other way
@@ -105,6 +106,14 @@ class Stylesheet(Resource):
     security.declarePublic('getApplyPrefix')
     def getApplyPrefix(self):
         return self._data.get('applyPrefix', False)
+
+    security.declareProtected(permissions.ManagePortal, 'setGzipped')
+    def setGzipped(self, gzipped):
+        self._data['gzipped'] = gzipped
+
+    security.declarePublic('getGzipped')
+    def getGzipped(self):
+        return self._data.get('gzipped', False)
 
 InitializeClass(Stylesheet)
 
@@ -235,12 +244,12 @@ class CSSRegistryTool(BaseRegistryTool):
                              enabled=False, cookable=True, compression='safe',
                              cacheable=True, REQUEST=None,
                              conditionalcomment='', authenticated=False,
-                             applyPrefix=False, bundle='default'):
+                             applyPrefix=False, bundle='default', gzipped=False):
         """Register a stylesheet from a TTW request."""
         self.registerStylesheet(id, expression, media, rel, title,
                                 rendering, enabled, cookable, compression,
                                 cacheable, conditionalcomment, authenticated,
-                                applyPrefix=applyPrefix, bundle=bundle)
+                                applyPrefix=applyPrefix, bundle=bundle, gzipped=gzipped)
         if REQUEST:
             REQUEST.RESPONSE.redirect(REQUEST['HTTP_REFERER'])
 
@@ -271,7 +280,8 @@ class CSSRegistryTool(BaseRegistryTool):
                                     conditionalcomment=r.get('conditionalcomment',''),
                                     authenticated=r.get('authenticated', False),
                                     applyPrefix=r.get('applyPrefix', False),
-                                    bundle=r.get('bundle', 'default'))
+                                    bundle=r.get('bundle', 'default'),
+                                    gzipped=r.get('gzipped', False))
             stylesheets.append(stylesheet)
         self.resources = tuple(stylesheets)
         self.cookResources()
@@ -295,7 +305,8 @@ class CSSRegistryTool(BaseRegistryTool):
                            enabled=1, cookable=True, compression='safe',
                            cacheable=True, conditionalcomment='',
                            authenticated=False, skipCooking=False,
-                           applyPrefix=False, bundle='default'):
+                           applyPrefix=False, bundle='default',
+                           gzipped=False):
         """Register a stylesheet."""
         
         if not id:
@@ -315,7 +326,8 @@ class CSSRegistryTool(BaseRegistryTool):
                                 conditionalcomment=conditionalcomment,
                                 authenticated=authenticated,
                                 applyPrefix=applyPrefix,
-                                bundle=bundle)
+                                bundle=bundle,
+                                gzipped=gzipped)
         self.storeResource(stylesheet, skipCooking=skipCooking)
 
     security.declareProtected(permissions.ManagePortal, 'updateStylesheet')
@@ -350,6 +362,8 @@ class CSSRegistryTool(BaseRegistryTool):
             stylesheet.setApplyPrefix(data['applyPrefix'])
         if data.get('bundle', None) is not None:
             stylesheet.setBundle(data['bundle'])
+        if data.get('gzipped', None) is not None:
+            stylesheet.setGzipped(data['gzipped'])
 
     security.declareProtected(permissions.ManagePortal, 'getRenderingOptions')
     def getRenderingOptions(self):
@@ -375,6 +389,7 @@ class CSSRegistryTool(BaseRegistryTool):
     def getContentType(self):
         """Return the registry content type."""
         return 'text/css;charset=utf-8'
+           
 
 
 InitializeClass(CSSRegistryTool)

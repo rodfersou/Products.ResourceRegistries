@@ -88,7 +88,8 @@ class ICSSRegistry(Interface):
         """Register a stylesheet."""
 
     def manage_addStylesheet(id, expression='', media='screen', rel='stylesheet',
-                             rendering='link', enabled=True , REQUEST=None):
+                             rendering='link', enabled=True , gzipped=False,
+                             REQUEST=None):
         """Add stylesheet from a ZMI form."""
 
     def manage_removeStylesheet(id, REQUEST=None):
@@ -111,7 +112,8 @@ class IKSSRegistry(Interface):
         """Register a kineticstylesheet."""
 
     def manage_addKineticStylesheet(id, expression='', 
-                                    enabled=True , REQUEST=None):
+                                    enabled=True, gzipped=False,
+                                    REQUEST=None):
         """Add kineticstylesheet from a ZMI form."""
 
     def manage_removeKineticStylesheet(id, REQUEST=None):
@@ -136,7 +138,8 @@ class IJSRegistry(Interface):
     def manage_saveScripts(REQUEST=None):
         """Save script data from form submission."""
 
-    def manage_addScript(id, expression='', inline=False, enabled=True , REQUEST=None):
+    def manage_addScript(id, expression='', inline=False, enabled=True,
+                         gzipped=False, REQUEST=None):
         """Add script from a ZMI form."""
 
     def manage_removeScript(id, REQUEST=None):

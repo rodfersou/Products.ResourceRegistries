@@ -22,6 +22,7 @@ class JavaScript(Resource):
         Resource.__init__(self, id, **kwargs)
         self._data['inline'] = kwargs.get('inline', False)
         self._data['compression'] = kwargs.get('compression', 'safe')
+        self._data['gzipped'] = kwargs.get('gzipped', False)
         if self.isExternal:
             self._data['inline'] = False #No inline rendering for External Resources
             self._data['compression'] = 'none' #External Resources are not compressible
@@ -51,6 +52,14 @@ class JavaScript(Resource):
             raise ValueError("Compression method '%s' must be one of: %s" % (
                              compression, ', '.join(config.JS_EXTERNAL_COMPRESSION_METHODS)))
         self._data['compression'] = compression
+
+    security.declareProtected(permissions.ManagePortal, 'setGzipped')
+    def setGzipped(self, gzipped):
+        self._data['gzipped'] = gzipped
+
+    security.declarePublic('getGzipped')
+    def getGzipped(self):
+        return self._data.get('gzipped', False)
 
 InitializeClass(JavaScript)
 
@@ -141,10 +150,11 @@ class JSRegistryTool(BaseRegistryTool):
     def manage_addScript(self, id, expression='', inline=False,
                          enabled=False, cookable=True, compression='safe',
                          cacheable=True, conditionalcomment='',
-                         authenticated=False, bundle='default', REQUEST=None):
+                         authenticated=False, bundle='default', gzipped=False, REQUEST=None):
         """Register a script from a TTW request."""
         self.registerScript(id, expression, inline, enabled, cookable,
-            compression, cacheable, conditionalcomment, authenticated, bundle=bundle)
+            compression, cacheable, conditionalcomment, authenticated, bundle=bundle,
+            gzipped=gzipped)
         if REQUEST:
             REQUEST.RESPONSE.redirect(REQUEST['HTTP_REFERER'])
 
@@ -171,7 +181,8 @@ class JSRegistryTool(BaseRegistryTool):
                                 compression=r.get('compression', 'safe'),
                                 conditionalcomment=r.get('conditionalcomment',''),
                                 authenticated=r.get('authenticated', False),
-                                bundle=r.get('bundle', 'default'))
+                                bundle=r.get('bundle', 'default'),
+                                gzipped=r.get('gzipped', False))
             scripts.append(script)
         self.resources = tuple(scripts)
         self.cookResources()
@@ -193,7 +204,8 @@ class JSRegistryTool(BaseRegistryTool):
     def registerScript(self, id, expression='', inline=False, enabled=True,
                        cookable=True, compression='safe', cacheable=True,
                        conditionalcomment='', authenticated=False,
-                       skipCooking=False, bundle='default'):
+                       skipCooking=False, bundle='default',
+                       gzipped=False):
         """Register a script."""
         script = self.resource_class(
                             id,
@@ -205,7 +217,8 @@ class JSRegistryTool(BaseRegistryTool):
                             cacheable=cacheable,
                             conditionalcomment=conditionalcomment,
                             authenticated=authenticated,
-                            bundle=bundle)
+                            bundle=bundle,
+                            gzipped=gzipped)
         self.storeResource(script, skipCooking=skipCooking)
 
     security.declareProtected(permissions.ManagePortal, 'updateScript')
@@ -231,6 +244,8 @@ class JSRegistryTool(BaseRegistryTool):
             script.setConditionalcomment(data['conditionalcomment'])
         if data.get('bundle', None) is not None:
             script.setBundle(data['bundle'])
+        if data.get('gzipped', None) is not None:
+            script.setGzipped(data['gzipped'])
 
     security.declareProtected(permissions.ManagePortal, 'getCompressionOptions')
     def getCompressionOptions(self):

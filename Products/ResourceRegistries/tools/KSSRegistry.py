@@ -21,6 +21,7 @@ class KineticStylesheet(Resource):
     def __init__(self, id, **kwargs):
         Resource.__init__(self, id, **kwargs)
         self._data['compression'] = kwargs.get('compression', 'safe')
+        self._data['gzipped'] = kwargs.get('gzipped', False)
         if self.isExternal:
             self._data['compression'] = 'none' #External resources are not compressable
 
@@ -39,6 +40,14 @@ class KineticStylesheet(Resource):
             raise ValueError("Compression method %s must be one of: %s for External Resources" % (
                              compression, ', '.join(config.KSS_EXTERNAL_COMPRESSION_METHODS)))
         self._data['compression'] = compression
+
+    security.declareProtected(permissions.ManagePortal, 'setGzipped')
+    def setGzipped(self, gzipped):
+        self._data['gzipped'] = gzipped
+
+    security.declarePublic('getGzipped')
+    def getGzipped(self):
+        return self._data.get('gzipped', False)
 
 InitializeClass(KineticStylesheet)
 
@@ -117,11 +126,11 @@ class KSSRegistryTool(BaseRegistryTool):
                              rel='stylesheet', title='', rendering='import',
                              enabled=False, cookable=True, compression='safe',
                              cacheable=True, conditionalcomment='', authenticated=False,
-                             bundle='default', REQUEST=None):
+                             bundle='default', gzipped=False, REQUEST=None):
         """Register a kineticstylesheet from a TTW request."""
         self.registerKineticStylesheet(id, expression, enabled,
                                        cookable, compression, cacheable,
-                                       conditionalcomment, authenticated, bundle=bundle)
+                                       conditionalcomment, authenticated, bundle=bundle, gzipped=gzipped)
         if REQUEST:
             REQUEST.RESPONSE.redirect(REQUEST['HTTP_REFERER'])
 
@@ -147,7 +156,8 @@ class KSSRegistryTool(BaseRegistryTool):
                                     compression=r.get('compression', 'safe'),
                                     conditionalcomment=r.get('conditionalcomment',''),
                                     authenticated=r.get('authenticated', False),
-                                    bundle=r.get('bundle', 'default'))
+                                    bundle=r.get('bundle', 'default'),
+                                    gzipped=r.get('gzipped', False))
             kineticstylesheets.append(kss)
         self.resources = tuple(kineticstylesheets)
         self.cookResources()
@@ -170,7 +180,8 @@ class KSSRegistryTool(BaseRegistryTool):
                                   cookable=True, compression='safe',
                                   cacheable=True, conditionalcomment='',
                                   authenticated=False,
-                                  skipCooking=False, bundle='default'):
+                                  skipCooking=False, bundle='default',
+                                  gzipped=False):
         """Register a kineticstylesheet."""
         kineticstylesheet = self.resource_class(id,
                                 expression=expression,
@@ -180,7 +191,8 @@ class KSSRegistryTool(BaseRegistryTool):
                                 cacheable=cacheable,
                                 conditionalcomment=conditionalcomment,
                                 authenticated=authenticated,
-                                bundle=bundle)
+                                bundle=bundle,
+                                gzipped=gzipped)
         self.storeResource(kineticstylesheet, skipCooking=skipCooking)
 
     security.declareProtected(permissions.ManagePortal, 'updateKineticStylesheet')
@@ -205,6 +217,8 @@ class KSSRegistryTool(BaseRegistryTool):
             kineticstylesheet.setConditionalcomment(data['conditionalcomment'])
         if data.get('bundle', None) is not None:
             kineticstylesheet.setBundle(data['bundle'])
+        if data.get('gzipped', None) is not None:
+            kineticstylesheet.setGzipped(data['gzipped'])
 
     security.declareProtected(permissions.ManagePortal, 'getCompressionOptions')
     def getCompressionOptions(self):

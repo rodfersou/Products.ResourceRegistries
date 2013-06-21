@@ -6,6 +6,7 @@ from StringIO import StringIO
 from urllib import quote_plus
 from hashlib import md5
 from time import time
+from gzip import GzipFile
 
 from zope.interface import implements, alsoProvides
 from zope.component import getAdapters
@@ -71,6 +72,20 @@ def is_anonymous():
     user = getSecurityManager().getUser()
     return bool(user.getUserName() == 'Anonymous User')
 
+def compress(file_name, file_content):
+    buf = StringIO()
+    fg = GzipFile(filename=file_name, fileobj=buf, mode='wb')
+    fg.write(file_content)
+    fg.close()
+    return buf.getvalue()
+
+def uncompress(file_gzipped):
+    fg = StringIO(file_gzipped)
+    f = GzipFile(fileobj=fg)
+    file_content = f.read()
+    f.close()
+    return file_content
+
 class PersistentResourceProvider(object):
     implements(IResourceProvider)
 
@@ -107,6 +122,7 @@ class Resource(Persistent):
         self._data['cacheable'] = kwargs.get('cacheable', True)
         self._data['conditionalcomment'] = kwargs.get('conditionalcomment','')
         self._data['bundle'] = kwargs.get('bundle', 'default')
+        self._data['gzipped'] = kwargs.get('gzipped', False)
         self.isExternal = extres
         if extres:
             self._data['cacheable'] = False #External resources are NOT cacheable
@@ -213,6 +229,14 @@ class Resource(Persistent):
     security.declareProtected(permissions.ManagePortal, 'setBundle')
     def setBundle(self, bundle):
         self._data['bundle'] = bundle
+
+    security.declarePublic('getGzipped')
+    def getGzipped(self):
+        return self._data.get('gzipped', None) or False
+
+    security.declareProtected(permissions.ManagePortal, 'setGzipped')
+    def setGzipped(self, gzipped):
+        self._data['gzipped'] = gzipped
 
 InitializeClass(Resource)
 
@@ -357,6 +381,8 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
         response = self.REQUEST.RESPONSE
         response.setHeader('Expires',rfc1123_date((DateTime() + duration).timeTime()))
         response.setHeader('Cache-Control', 'max-age=%d' % int(seconds))
+        if not self.getDebugMode():
+            response.setHeader('Content-Encoding', 'gzip')
 
         if isinstance(output, unicode):
             output = output.encode('utf-8')
@@ -664,6 +690,11 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
         default_charset = 'utf-8'
 
         for id in ids:
+            resource = resources.get(id, None)
+            gzipped = False
+            if (resource and hasattr(resource, 'getGzipped')):
+                gzipped = resource.getGzipped()
+
             try:
                 if portal is not None:
                     obj = context.restrictedTraverse(id)
@@ -706,12 +737,14 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
                             try:
                                 method = obj.browserDefault(self.REQUEST)[0].__name__
                             except AttributeError:
-                                # The above can all fail if request.method is
+                                # The above rgcan all fail if request.method is
                                 # POST.  We can still at least try to use the
                                 # GET method, as we prefer that anyway.
                                 method = getattr(obj, 'GET').__name__
                     method = method in ('HEAD','POST') and 'GET' or method
                     content = getattr(obj, method)()
+                    if (gzipped):
+                        content = uncompress(content)
                     if not isinstance(content, unicode):
                         contenttype = self.REQUEST.RESPONSE.headers.get('content-type', '')
                         contenttype = getCharsetFromContentType(contenttype, default_charset)
@@ -720,18 +753,25 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
                 elif hasattr(aq_base(obj),'meta_type') and  obj.meta_type in ['DTML Method', 'Filesystem DTML Method']:
                     content = obj(client=self.aq_parent, REQUEST=self.REQUEST,
                                   RESPONSE=self.REQUEST.RESPONSE)
+                    if (gzipped):
+                        content = uncompress(content)
                     contenttype = self.REQUEST.RESPONSE.headers.get('content-type', '')
                     contenttype = getCharsetFromContentType(contenttype, default_charset)
                     content = unicode(content, contenttype)
                 elif hasattr(aq_base(obj),'meta_type') and obj.meta_type == 'Filesystem File':
                     obj._updateFromFS()
                     content = obj._readFile(0)
+                    if (gzipped):
+                        content = uncompress(content)
                     contenttype = getCharsetFromContentType(obj.content_type, default_charset)
                     content = unicode(content, contenttype)
                 elif hasattr(aq_base(obj),'meta_type') and obj.meta_type in ('ATFile', 'ATBlob'):
                     f = obj.getFile()
                     contenttype = getCharsetFromContentType(f.getContentType(), default_charset)
-                    content = unicode(str(f), contenttype)
+                    content = str(f)
+                    if (gzipped):
+                        content = uncompress(content)
+                    content = unicode(content, contenttype)
                 # We should add more explicit type-matching checks
                 elif hasattr(aq_base(obj), 'index_html') and callable(obj.index_html):
                     original_headers, if_modified = self._removeCachingHeaders()
@@ -745,6 +785,8 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
                     finally:
                         self.REQUEST.RESPONSE.write = response_write
                     content = tmp.getvalue() or content
+                    if (gzipped):
+                        content = uncompress(content)
                     if not isinstance(content, unicode):
                         content = unicode(content, default_charset)
                     self._restoreCachingHeaders(original_headers, if_modified)
@@ -758,10 +800,15 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
                     if IStreamIterator.providedBy(content):
                         content = content.read()
 
+                    if (gzipped):
+                        content = uncompress(content)
+
                     if not isinstance(content, unicode):
                         content = unicode(content, default_charset)
                 else:
                     content = str(obj)
+                    if (gzipped):
+                        content = uncompress(content)
                     content = unicode(content, default_charset)
 
             # Add start/end notes to the resource for better
@@ -773,6 +820,10 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
                 else:
                     output += self.finalizeContent(resources[id], content)
                 output += u'\n'
+
+        if not self.getDebugMode():
+            output = compress(item, output)
+
         return output
 
     def _removeCachingHeaders(self):

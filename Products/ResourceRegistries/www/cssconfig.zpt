@@ -312,6 +312,12 @@ alternateStylesheet python:stylesheet.getRendering() == 'link' and stylesheet.ge
                                         selected python:r == stylesheet.getCompression()"
                         tal:content="r">safe</option>
             </select>
+
+            <label>File Gzipped?</label>
+            <span tal:content="stylesheet/getGzipped"></span>
+            <input type="checkbox" name="stylesheets.gzipped:records:boolean"
+                   tal:attributes="checked stylesheet/getGzipped | default" />
+            <input type="hidden" name="stylesheets.gzipped:records:boolean:default" value="False" />
         </div>
 
         <div style="clear: both;">&nbsp;</div>
@@ -389,6 +395,12 @@ alternateStylesheet python:stylesheet.getRendering() == 'link' and stylesheet.ge
                                           selected python:r=='safe'"
                           tal:content="r">safe</option>
               </select>
+          </div>
+
+          <div>
+              <label>File Gzipped?</label>
+              <input type="checkbox" name="gzipped:boolean" value="True" />
+              <input type="hidden" name="gzipped:boolean:default" value="False" />
           </div>
 
           <div>

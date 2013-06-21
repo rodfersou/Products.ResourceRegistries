@@ -254,6 +254,13 @@ legend {
                                         selected python:r == kineticstylesheet.getCompression()"
                         tal:content="r">safe</option>
             </select>
+
+            <div>
+                <label>File Gzipped?</label>
+                <input type="checkbox" name="kineticstylesheets.gzipped:boolean" value="True"
+                       tal:attributes="checked kineticstylesheets/getGzipped | default" />
+                <input type="hidden" name="kineticstylesheets.gzipped:boolean:default" value="False" />
+            </div>
         </div>
 
         <div style="clear: both;">&nbsp;</div>
@@ -302,6 +309,12 @@ legend {
                                           selected python:r=='safe'"
                           tal:content="r">safe</option>
               </select>
+          </div>
+
+          <div>
+              <label>File Gzipped?</label>
+              <input type="checkbox" name="gzipped:boolean" value="True" />
+              <input type="hidden" name="gzipped:boolean:default" value="False" />
           </div>
 
           <div>
