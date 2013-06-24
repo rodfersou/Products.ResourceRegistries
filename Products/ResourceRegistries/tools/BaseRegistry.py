@@ -381,6 +381,8 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
         response = self.REQUEST.RESPONSE
         response.setHeader('Expires',rfc1123_date((DateTime() + duration).timeTime()))
         response.setHeader('Cache-Control', 'max-age=%d' % int(seconds))
+        if not self.getDebugMode():
+            response.setHeader('Content-Encoding', 'gzip')
 
         if isinstance(output, unicode):
             output = output.encode('utf-8')
@@ -690,11 +692,8 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
         for id in ids:
             resource = resources.get(id, None)
             gzipped = False
-            inline = False
             if (resource and hasattr(resource, 'getGzipped')):
                 gzipped = resource.getGzipped()
-            if (resource and hasattr(resource, 'getInline')):
-                inline = resource.getInline()
 
             try:
                 if portal is not None:
@@ -822,9 +821,7 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
                     output += self.finalizeContent(resources[id], content)
                 output += u'\n'
 
-        if ((not self.getDebugMode()) and
-            (not inline)):
-            self.REQUEST.RESPONSE.setHeader('Content-Encoding', 'gzip')
+        if not self.getDebugMode():
             output = compress(item, output)
 
         return output
@@ -1114,6 +1111,14 @@ class BaseRegistryTool(UniqueObject, SimpleItem, PropertyManager, Cacheable):
         output = self.getResourceContent(item, context)
         # File objects and other might manipulate the headers,
         # something we don't want. we set the saved headers back
+
+        # Gzip fix for inline elements
+        if not self.getDebugMode():
+            output = uncompress(output)
+            if (headers.has_key('Content-Encoding')):
+                del(headers['Content-Encoding'])
+        # Gzip fix for inline elements
+
         self.REQUEST.RESPONSE.headers = headers
         return output
 
